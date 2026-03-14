@@ -41,7 +41,7 @@ mkdir -p /etc/xray/usage/quota/vless
 cd /usr/local/sbin
 apt update
 apt install zip unzip -y
-wget -qO menu.zip "https://raw.githubusercontent.com/zyanv/SCRIPT/main/main.zip"
+wget -qO menu.zip "https://raw.githubusercontent.com/zyanv/SCRIPT/main/main/main.zip"
 unzip menu.zip
 rm -f menu.zip
 chmod +x *
