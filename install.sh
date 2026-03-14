@@ -191,7 +191,7 @@ systemctl start xray
 systemctl restart xray
 
 # Install Warp Cloudflare
-wget -q -O /usr/sbin/wcf "https://raw.githubusercontent.com/zyanv/WARP/main/wcf.sh" && chmod +x /usr/sbin/wcf && wcf
+wget -q -O /usr/sbin/wcf "https://raw.githubusercontent.com/zyanv/WARP/main/wcf.sh" && chmod +x /usr/sbin/wcf
 
 # Set
 domain=$(cat /etc/xray/domain)
