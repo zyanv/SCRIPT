@@ -111,9 +111,6 @@ while true; do
     read -p "Input: " domain
     if [[ -n "$domain" ]]; then
         break
-    read -p "Input: " email
-    if [[ -n "$email" ]]; then
-        break
     else
         echo -e "\e[31m[!] Domain tidak boleh kosong, silakan ulangi.\e[0m"
     fi
@@ -123,6 +120,7 @@ echo -e "\e[32m[OK]\e[0m Domain set -> $domain"
 
 clear
 echo -e "$domain" > /etc/xray/domain
+
 
 # Install Dropbear
 apt install dropbear -y
