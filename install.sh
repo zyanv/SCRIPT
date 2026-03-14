@@ -108,11 +108,11 @@ echo -e "
 "
 
 while true; do
-    read -p "Input: " domain
+    read -p "Input Domain: " domain
     if [[ -n "$domain" ]]; then
         break
-    read -p "Input: " domain
-    if [[ -n "$domain" ]]; then
+    read -p "Input Email: " email
+    if [[ -n "email" ]]; then
         break   
     else
         echo -e "\e[31m[!] Domain tidak boleh kosong, silakan ulangi.\e[0m"
@@ -204,7 +204,7 @@ port=$(lsof -i:80 | awk '{print $1}')
 systemctl stop apache2
 systemctl disable apache2
 pkill $port
-yes Y | certbot certonly --standalone --preferred-challenges http --agree-tos --email ernasusmita929@gmail.com -d $domain 
+yes Y | certbot certonly --standalone --preferred-challenges http --agree-tos --email $email -d $domain 
 cp /etc/letsencrypt/live/$domain/fullchain.pem /etc/xray/xray.crt
 cp /etc/letsencrypt/live/$domain/privkey.pem /etc/xray/xray.key
 cd /etc/xray
