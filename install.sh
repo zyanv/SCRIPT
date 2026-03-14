@@ -190,6 +190,11 @@ systemctl enable xray
 systemctl start xray
 systemctl restart xray
 
+# Install Warp Cloudflare
+cd /usr/local/bin
+wget -O wcf "https://raw.githubusercontent.com/zyanv/WARP/main/wcf.sh"
+chmod +x wcf
+
 # Set
 domain=$(cat /etc/xray/domain)
 
