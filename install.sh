@@ -41,7 +41,7 @@ mkdir -p /etc/xray/usage/quota/vless
 cd /usr/local/sbin
 apt update
 apt install zip unzip -y
-wget -qO menu.zip "https://raw.githubusercontent.com/zyanv/SCRIPT/main/main/main.zip"
+wget -qO menu.zip "https://raw.githubusercontent.com/zyanv/SCRIPT/main/file/main.zip"
 unzip menu.zip
 rm -f menu.zip
 chmod +x *
@@ -191,9 +191,7 @@ systemctl start xray
 systemctl restart xray
 
 # Install Warp Cloudflare
-cd /usr/local/bin
-wget -O wcf "https://raw.githubusercontent.com/zyanv/WARP/main/wcf.sh"
-chmod +x wcf
+wget -q -O /usr/sbin/wcf "https://raw.githubusercontent.com/zyanv/WARP/main/wcf.sh" && chmod +x /usr/sbin/wcf && wcf
 
 # Set
 domain=$(cat /etc/xray/domain)
