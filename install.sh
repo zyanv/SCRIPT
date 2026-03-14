@@ -111,6 +111,9 @@ while true; do
     read -p "Input: " domain
     if [[ -n "$domain" ]]; then
         break
+    read -p "Input: " domain
+    if [[ -n "$domain" ]]; then
+        break   
     else
         echo -e "\e[31m[!] Domain tidak boleh kosong, silakan ulangi.\e[0m"
     fi
