@@ -70,9 +70,9 @@ iptables-save > /etc/iptables/rules.v4
 #iptables -L -v -n
 
 # Setup Socks5 Proxy
-sudo apt install dante-server curl -y
-sudo touch /var/log/danted.log
-sudo chown root:root /var/log/danted.log
+apt install dante-server curl -y
+touch /var/log/danted.log
+chown root:root /var/log/danted.log
 primary_interface=$(ip route | grep default | awk '{print $5}')
 sudo bash -c "cat <<EOF > /etc/danted.conf
 logoutput: /var/log/danted.log
