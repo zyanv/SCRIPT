@@ -74,7 +74,7 @@ apt install dante-server curl -y
 touch /var/log/danted.log
 chown root:root /var/log/danted.log
 primary_interface=$(ip route | grep default | awk '{print $5}')
-sudo bash -c "cat <<EOF > /etc/danted.conf
+bash -c "cat <<EOF > /etc/danted.conf
 logoutput: /var/log/danted.log
 
 internal: 0.0.0.0 port = 40000
@@ -94,10 +94,10 @@ socks pass {
     log: connect disconnect error
 }
 EOF"
-sudo sed -i '/\[Service\]/a ReadWriteDirectories=/var/log' /usr/lib/systemd/system/danted.service
-sudo systemctl daemon-reload
-sudo systemctl restart danted
-sudo systemctl enable danted
+sed -i '/\[Service\]/a ReadWriteDirectories=/var/log' /usr/lib/systemd/system/danted.service
+systemctl daemon-reload
+systemctl restart danted
+systemctl enable danted
 
 # Set Data Domain Server
 clear
