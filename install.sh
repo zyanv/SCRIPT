@@ -108,12 +108,9 @@ echo -e "
 "
 
 while true; do
-    read -p "Input Domain: " domain
+    read -p "Input: " domain
     if [[ -n "$domain" ]]; then
         break
-    read -p "Input Email: " email
-    if [[ -n "$email" ]]; then
-        break   
     else
         echo -e "\e[31m[!] Domain tidak boleh kosong, silakan ulangi.\e[0m"
     fi
@@ -123,7 +120,6 @@ echo -e "\e[32m[OK]\e[0m Domain set -> $domain"
 
 clear
 echo -e "$domain" > /etc/xray/domain
-
 
 # Install Dropbear
 apt install dropbear -y
@@ -196,6 +192,23 @@ systemctl restart xray
 
 # Set
 domain=$(cat /etc/xray/domain)
+
+echo -e "
++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            INPUT EMAIL FOR SERVER
++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+"
+
+while true; do
+    read -p "Input: " email
+    if [[ -n "$email" ]]; then
+        break
+    else
+        echo -e "\e[31m[!] email tidak boleh kosong, silakan ulangi.\e[0m"
+    fi
+done
+
+echo -e "\e[32m[OK]\e[0m Domain set -> $email"
 
 # Nginx & Certificate Setup
 apt install socat -y
