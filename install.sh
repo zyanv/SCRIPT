@@ -197,9 +197,6 @@ systemctl enable xray
 systemctl start xray
 systemctl restart xray
 
-# Install Warp Cloudflare
-wget -q -O /usr/sbin/wcf "https://raw.githubusercontent.com/zyanv/WARP/main/wcf.sh" && chmod +x /usr/sbin/wcf
-
 # Set
 domain=$(cat /etc/xray/domain)
 
@@ -291,6 +288,9 @@ bash <(curl -s https://raw.githubusercontent.com/zyanv/WARP/main/udp.sh)
 clear
 
 apt install dos2unix -y ; dos2unix /usr/local/sbin/menu-tweak
+
+# Install Warp Cloudflare
+wget -q -O /usr/sbin/wcf "https://raw.githubusercontent.com/zyanv/WARP/main/wcf.sh" && chmod +x /usr/sbin/wcf
 
 # Disable IPv6
 sysctl -w net.ipv6.conf.all.disable_ipv6=1
