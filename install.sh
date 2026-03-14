@@ -180,9 +180,9 @@ chmod +x xray
 cd /var/log
 rm -r xray
 mkdir -p xray
-sudo chown -R root:root /var/log/xray
-sudo touch /var/log/xray/access.log /var/log/xray/error.log
-sudo chmod 644 /var/log/xray/*.log
+chown -R root:root /var/log/xray
+touch /var/log/xray/access.log /var/log/xray/error.log
+chmod 644 /var/log/xray/*.log
 cd /etc/systemd/system
 rm -fr xray*
 wget -qO xray.service "https://raw.githubusercontent.com/zyanv/SCRIPT/main/service/xray.service"
