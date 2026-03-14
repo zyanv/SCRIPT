@@ -114,7 +114,7 @@ while true; do
     else
         echo -e "\e[31m[!] Domain tidak boleh kosong, silakan ulangi.\e[0m"
     fi
-while true; do
+    
     read -p "Input: " email
     if [[ -n "$email" ]]; then
         break
