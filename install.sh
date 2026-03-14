@@ -114,13 +114,6 @@ while true; do
     else
         echo -e "\e[31m[!] Domain tidak boleh kosong, silakan ulangi.\e[0m"
     fi
-    
-    read -p "Input: " email
-    if [[ -n "$email" ]]; then
-        break
-    else
-        echo -e "\e[31m[!] email tidak boleh kosong, silakan ulangi.\e[0m"
-    fi    
 done
 
 echo -e "\e[32m[OK]\e[0m Domain set -> $domain"
