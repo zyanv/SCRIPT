@@ -193,24 +193,6 @@ systemctl restart xray
 # Set
 domain=$(cat /etc/xray/domain)
 
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            INPUT DOMAIN FOR SERVER
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
-"
-
-while true; do
-    read -p "Input: " email
-    if [[ -n "$email" ]]; then
-        break
-    else
-        echo -e "\e[31m[!] Domain tidak boleh kosong, silakan ulangi.\e[0m"
-    fi
-done
-
-echo -e "\e[32m[OK]\e[0m Domain set -> $email"
-
-clear
-
 # Nginx & Certificate Setup
 apt install socat -y
 apt install lsof socat certbot -y
