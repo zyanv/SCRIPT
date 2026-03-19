@@ -190,6 +190,26 @@ systemctl enable xray
 systemctl start xray
 systemctl restart xray
 
+#Set Email VPS
+echo -e "
++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            INPUT EMAIL FOR SERVER
++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+"
+
+while true; do
+    read -p "Input: " email
+    if [[ -n "$email" ]]; then
+        break
+    else
+        echo -e "\e[31m[!] Email tidak boleh kosong, silakan ulangi.\e[0m"
+    fi
+done
+
+echo -e "\e[32m[OK]\e[0m Email set -> $email"
+
+clear
+
 # Set
 domain=$(cat /etc/xray/domain)
 
@@ -200,7 +220,7 @@ port=$(lsof -i:80 | awk '{print $1}')
 systemctl stop apache2
 systemctl disable apache2
 pkill $port
-yes Y | certbot certonly --standalone --preferred-challenges http --agree-tos --email tyanv999@outlook.com -d $domain 
+yes Y | certbot certonly --standalone --preferred-challenges http --agree-tos --email $email -d $domain 
 cp /etc/letsencrypt/live/$domain/fullchain.pem /etc/xray/xray.crt
 cp /etc/letsencrypt/live/$domain/privkey.pem /etc/xray/xray.key
 cd /etc/xray
