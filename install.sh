@@ -190,6 +190,7 @@ systemctl enable xray
 systemctl start xray
 systemctl restart xray
 
+clear
 #Set Email VPS
 echo -e "
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
