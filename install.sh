@@ -69,36 +69,6 @@ netfilter-persistent save
 iptables-save > /etc/iptables/rules.v4
 #iptables -L -v -n
 
-# Setup Socks5 Proxy
-apt install dante-server curl -y
-touch /var/log/danted.log
-chown root:root /var/log/danted.log
-primary_interface=$(ip route | grep default | awk '{print $5}')
-bash -c "cat <<EOF > /etc/danted.conf
-logoutput: /var/log/danted.log
-
-internal: 0.0.0.0 port = 40000
-external: $primary_interface
-
-method: none
-user.privileged: root
-user.unprivileged: nobody
-
-client pass {
-    from: 0.0.0.0/0 to: 0.0.0.0/0
-    log: connect disconnect error
-}
-
-socks pass {
-    from: 0.0.0.0/0 to: 0.0.0.0/0
-    log: connect disconnect error
-}
-EOF"
-sed -i '/\[Service\]/a ReadWriteDirectories=/var/log' /usr/lib/systemd/system/danted.service
-systemctl daemon-reload
-systemctl restart danted
-systemctl enable danted
-
 # Set Data Domain Server
 clear
 echo -e "
