@@ -272,6 +272,7 @@ bash <(curl -s https://raw.githubusercontent.com/zyanv/WARP/main/udp.sh)
 clear
 
 apt install dos2unix -y ; dos2unix /usr/local/sbin/menu-tweak
+clear
 
 # Disable IPv6
 sysctl -w net.ipv6.conf.all.disable_ipv6=1
@@ -283,8 +284,14 @@ net.ipv6.conf.lo.disable_ipv6 = 1" >> /etc/sysctl.conf
 sleep 2
 clear
 
+# Setup Warp CloudFlare
+wget -q -O /usr/sbin/wcf "https://raw.githubusercontent.com/zyanv/WARP/main/wcf.sh" && chmod +x /usr/sbin/wcf && wcf
+clear
+
 # Notification
 echo -e " Script Success Install"
 rm -fr *.sh
+
+clear
 
 read -n 1 -r -s -p $'Press any key to reboot...\n';reboot
