@@ -86,6 +86,32 @@
         ]
       }
     }
+    {
+      "listen": "127.0.0.1",
+      "port": 3,
+      "protocol": "vless",
+      "settings": {
+        "clients": [
+          {
+            "id": "1d1c1d94-6987-4658-a4dc-8821a30fe7e0"
+#vless
+          }
+        ],
+        "decryption": "none"
+      },
+      "streamSettings": {
+        "network": "xhttp",
+        "xhttpSettings": {
+          "mode": "auto",
+          "path": "/xvless"
+        }
+      },
+      "sniffing": {
+        "enabled": true,
+        "destOverride": ["fakedns+others", "http", "tls", "quic"],
+        "routeOnly": true
+      }
+    }
   ],
   "outbounds": [
     {
