@@ -1,0 +1,16 @@
+[Unit]
+Description=WebSocket
+Documentation=https://www.rerechanstore.eu.org
+After=syslog.target network-online.target
+
+[Service]
+User=root
+NoNewPrivileges=true
+ExecStart=/usr/local/bin/ssh-ws -api-port 0 -p 4 -t 127.0.0.1:109 -l /var/log/ssh-ws.log
+Restart=on-failure
+RestartPreventExitStatus=23
+LimitNPROC=10000
+LimitNOFILE=1000000
+
+[Install]
+WantedBy=multi-user.target
