@@ -232,7 +232,7 @@ bash <(curl -Lks https://raw.githubusercontent.com/zyanv/WARP/main/cert)
 bash <(curl -s https://raw.githubusercontent.com/zyanv/WARP/main/nginx.sh)
 systemctl stop nginx
 wget -qO /etc/nginx/nginx.conf "https://raw.githubusercontent.com/zyanv/SCRIPT/main/CONFIG/nginx.conf"
-sed -i "s|fn.com|${domain}|g" /etc/nginx/nginx.conf
+sed -i "s|${domain}|g" /etc/nginx/nginx.conf
 systemctl daemon-reload
 systemctl start nginx
 
