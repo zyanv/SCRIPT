@@ -1,59 +1,82 @@
 #!/bin/bash
+set -euo pipefail
+
 clear
 
-# Update & install package
-apt update
-apt install wget curl openssl binutils coreutils gnupg bc vnstat -y
-apt install sudo -y
-apt install htop lsof -y
-apt install jq -y
-apt install python3 -y
+if [ "$(id -u)" -ne 0 ]; then
+  echo "Jalankan script ini sebagai root"
+  exit 1
+fi
 
-# Fix Multi Collor
-apt install ruby -y
-apt install lolcat -y
-gem install lolcat
+export DEBIAN_FRONTEND=noninteractive
+
+log() {
+  echo -e "\e[32m[OK]\e[0m $*"
+}
+
+warn() {
+  echo -e "\e[33m[WARN]\e[0m $*"
+}
+
+fail() {
+  echo -e "\e[31m[ERR]\e[0m $*"
+  exit 1
+}
+
+# Update & install package
+apt update -y
+apt install -y \
+  wget curl openssl binutils coreutils gnupg bc vnstat sudo \
+  htop lsof jq python3 ruby lolcat unzip zip socat certbot cron \
+  iptables iptables-persistent dante-server dos2unix
+
+gem install lolcat || true
 
 # Fix DNS
-cat <(echo "nameserver 8.8.8.8") /etc/resolv.conf > /etc/resolv.conf.tmp && mv /etc/resolv.conf.tmp /etc/resolv.conf && cat <(echo "nameserver 1.1.1.1") /etc/resolv.conf > /etc/resolv.conf.tmp && mv /etc/resolv.conf.tmp /etc/resolv.conf
+cat > /etc/resolv.conf <<EOF
+nameserver 8.8.8.8
+nameserver 1.1.1.1
+EOF
+log "DNS updated"
 
 # Fix Port OpenSSH
-cd /etc/ssh
-find . -type f -name "*sshd_config*" -exec sed -i 's|#Port 22|Port 22|g' {} +
-echo -e "Port 3303" >> sshd_config
-cd
-systemctl daemon-reload
-systemctl restart ssh
-systemctl restart sshd
+if [ -f /etc/ssh/sshd_config ]; then
+  sed -i 's/^[#[:space:]]*Port 22/Port 22/g' /etc/ssh/sshd_config
+  grep -q '^Port 3303$' /etc/ssh/sshd_config || echo 'Port 3303' >> /etc/ssh/sshd_config
+  systemctl restart ssh || true
+  systemctl restart sshd || true
+  log "SSH port configured"
+fi
 
-# Make A Directory
+# Make directories
 mkdir -p /etc/xray/limit/ip/ssh
 mkdir -p /etc/xray/limit/ip/vless
 mkdir -p /etc/xray/limit/quota/ssh
 mkdir -p /etc/xray/limit/database/ssh
 mkdir -p /etc/xray/limit/database/vless
-mkdir -p /etc/xray/usage/quta/vless
+mkdir -p /etc/xray/usage/quota/vless
 mkdir -p /etc/xray/recovery/ssh
 mkdir -p /etc/xray/recovery/vless
-mkdir -p /etc/xray/usage/quota/vless
+mkdir -p /usr/local/share/xray
+mkdir -p /var/log/xray
+mkdir -p /etc/xray
+log "Directories created"
 
-# Copy Menu
+# Copy menu
 cd /usr/local/sbin
-apt update
-apt install zip unzip -y
 wget -qO menu.zip "https://raw.githubusercontent.com/zyanv/SCRIPT/main/FILE/main.zip"
-unzip menu.zip
+unzip -o menu.zip
 rm -f menu.zip
-chmod +x *
-cd
+chmod +x ./* || true
+cd /root
+log "Menu files installed"
 
-# Setup Firewall
-systemctl stop ufw
-systemctl disable ufw
-apt purge ufw -y
+# Setup firewall
+systemctl stop ufw 2>/dev/null || true
+systemctl disable ufw 2>/dev/null || true
+apt purge -y ufw || true
 apt autoremove -y
-apt update
-apt install iptables iptables-persistent -y
+
 iptables -F
 iptables -X
 iptables -t nat -F
@@ -67,14 +90,15 @@ iptables -A INPUT -p tcp --dport 1:65535 -j ACCEPT
 iptables -A INPUT -p udp --dport 1:65535 -j ACCEPT
 netfilter-persistent save
 iptables-save > /etc/iptables/rules.v4
-#iptables -L -v -n
+log "Firewall configured"
 
 # Setup Socks5 Proxy
-apt install dante-server curl -y
 touch /var/log/danted.log
 chown root:root /var/log/danted.log
-primary_interface=$(ip route | grep default | awk '{print $5}')
-bash -c "cat <<EOF > /etc/danted.conf
+primary_interface=$(ip route | awk '/default/ {print $5; exit}')
+[ -n "$primary_interface" ] || fail "Tidak bisa mendeteksi interface utama"
+
+cat > /etc/danted.conf <<EOF
 logoutput: /var/log/danted.log
 
 internal: 0.0.0.0 port = 40000
@@ -93,226 +117,220 @@ socks pass {
     from: 0.0.0.0/0 to: 0.0.0.0/0
     log: connect disconnect error
 }
-EOF"
-sed -i '/\[Service\]/a ReadWriteDirectories=/var/log' /usr/lib/systemd/system/danted.service
-systemctl daemon-reload
-systemctl restart danted
-systemctl enable danted
+EOF
 
-# Set Data Domain Server
+if [ -f /usr/lib/systemd/system/danted.service ]; then
+  grep -q 'ReadWriteDirectories=/var/log' /usr/lib/systemd/system/danted.service || \
+  sed -i '/\[Service\]/a ReadWriteDirectories=/var/log' /usr/lib/systemd/system/danted.service
+fi
+
+systemctl daemon-reload
+systemctl enable danted
+systemctl restart danted
+log "Dante configured"
+
+# Set domain
 clear
-echo -e "
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            INPUT DOMAIN FOR SERVER
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
-"
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+echo "            INPUT DOMAIN FOR SERVER"
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 
 while true; do
-    read -p "Input: " domain
-    if [[ -n "$domain" ]]; then
-        break
-    else
-        echo -e "\e[31m[!] Domain tidak boleh kosong, silakan ulangi.\e[0m"
-    fi
+  read -rp "Input domain: " domain
+  if [[ -n "${domain}" ]]; then
+    break
+  fi
+  echo -e "\e[31m[!] Domain tidak boleh kosong, silakan ulangi.\e[0m"
 done
 
-echo -e "\e[32m[OK]\e[0m Domain set -> $domain"
-
-clear
-echo -e "$domain" > /etc/xray/domain
+echo "$domain" > /etc/xray/domain
+log "Domain set -> $domain"
 
 # Install Dropbear
-apt install dropbear -y
-bash <(curl -s https://raw.githubusercontent.com/zyanv/WARP/main/dropbear.sh)
+apt install -y dropbear
+bash <(curl -fsSL https://raw.githubusercontent.com/zyanv/WARP/main/dropbear.sh)
+
 rm -f /etc/dropbear/dropbear_rsa_host_key
 dropbearkey -t rsa -f /etc/dropbear/dropbear_rsa_host_key
+
 rm -f /etc/dropbear/dropbear_dss_host_key
 dropbearkey -t dss -f /etc/dropbear/dropbear_dss_host_key
+
 rm -f /etc/dropbear/dropbear_ecdsa_host_key
 dropbearkey -t ecdsa -f /etc/dropbear/dropbear_ecdsa_host_key
+
 cd /etc/default
 rm -f dropbear
 wget -qO dropbear "https://raw.githubusercontent.com/zyanv/SCRIPT/main/CONFIG/dropbear.conf"
-echo "/bin/false" >> /etc/shells
-echo "/usr/sbin/nologin" >> /etc/shells
-echo -e "Dev @Rerechan02" > /etc/issue.net
-clear
+
+grep -qxF "/bin/false" /etc/shells || echo "/bin/false" >> /etc/shells
+grep -qxF "/usr/sbin/nologin" /etc/shells || echo "/usr/sbin/nologin" >> /etc/shells
+
+echo "Dev @Rerechan02" > /etc/issue.net
 systemctl daemon-reload
-/etc/init.d/dropbear restart
-clear
+systemctl restart dropbear
 cd /root
-rm -fr dropbear*
+rm -rf dropbear*
+log "Dropbear installed"
 
 # Install SSH WebSocket
 cd /usr/local/bin
 wget -qO ssh-ws "https://raw.githubusercontent.com/zyanv/SCRIPT/main/CORE/ssh-ws"
 chmod +x ssh-ws
+
 cd /etc/systemd/system
 wget -qO ssh-ws.service "https://raw.githubusercontent.com/zyanv/SCRIPT/main/SERVICE/ssh-ws.service"
-cd
 systemctl daemon-reload
-systemctl start ssh-ws.service
 systemctl enable ssh-ws.service
+systemctl restart ssh-ws.service
+cd /root
+log "SSH WebSocket installed"
 
-# Install Xray
-mkdir -p /usr/local/share/xray
-wget -q -O /usr/local/share/xray/geosite.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat" >/dev/null 2>&1
-wget -q -O /usr/local/share/xray/geoip.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat" >/dev/null 2>&1
-chmod +x /usr/local/share/xray/*
-wget -q -O /etc/xray/config.json "https://raw.githubusercontent.com/zyanv/SCRIPT/main/CONFIG/config.json"
-cd /etc/xray
+# Install Xray data
+wget -qO /usr/local/share/xray/geosite.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat"
+wget -qO /usr/local/share/xray/geoip.dat "https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geoip.dat"
+chmod 644 /usr/local/share/xray/geosite.dat /usr/local/share/xray/geoip.dat
+
+wget -qO /etc/xray/config.json "https://raw.githubusercontent.com/zyanv/SCRIPT/main/CONFIG/config.json"
 uuid=$(cat /proc/sys/kernel/random/uuid)
 sed -i "s|xxxxx|${uuid}|g" /etc/xray/config.json
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data --version 25.10.15
 
-# Change Core Xray
-cd /usr/local/bin
-systemctl stop xray
-systemctl disable xray
-mv xray xray.bak
-apt install zip -y
-apt install unzip -y
-LATEST=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases/latest | grep tag_name | cut -d '"' -f 4)
-wget -O xray.zip "https://github.com/XTLS/Xray-core/releases/download/${LATEST}/Xray-linux-64.zip" && \
-unzip -o xray.zip
-chmod +x xray
+bash -c "$(curl -fsSL https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install -u www-data
 
-# Fix Service Xray
-cd /var/log
-rm -r xray
-mkdir -p xray
-chown -R root:root /var/log/xray
+# Update ke latest official Xray
+systemctl stop xray 2>/dev/null || true
+LATEST=$(curl -s https://api.github.com/repos/XTLS/Xray-core/releases/latest | jq -r .tag_name)
+wget -qO /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${LATEST}/Xray-linux-64.zip"
+unzip -o /tmp/xray.zip -d /usr/local/bin/
+chmod +x /usr/local/bin/xray
+rm -f /tmp/xray.zip
+log "Xray updated to $LATEST"
+
+# Fix Xray logs and service
+mkdir -p /var/log/xray
 touch /var/log/xray/access.log /var/log/xray/error.log
-chmod 644 /var/log/xray/*.log
-cd /etc/systemd/system
-rm -fr xray*
-wget -qO xray.service "https://raw.githubusercontent.com/zyanv/SCRIPT/main/SERVICE/xray.service"
+chown -R root:root /var/log/xray
+chmod 644 /var/log/xray/access.log /var/log/xray/error.log
+
+wget -qO /etc/systemd/system/xray.service "https://raw.githubusercontent.com/zyanv/SCRIPT/main/SERVICE/xray.service"
+systemctl daemon-reload
 systemctl enable xray
-systemctl start xray
 systemctl restart xray
+log "Xray service configured"
 
-# Set
-domain=$(cat /etc/xray/domain)
-
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            INPUT DOMAIN FOR SERVER
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++
-"
+# Input email for certbot
+clear
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+echo "            INPUT EMAIL FOR CERTIFICATE"
+echo "+++++++++++++++++++++++++++++++++++++++++++++++++++++++"
 
 while true; do
-    read -p "Input: " email
-    if [[ -n "$email" ]]; then
-        break
-    else
-        echo -e "\e[31m[!] Domain tidak boleh kosong, silakan ulangi.\e[0m"
-    fi
+  read -rp "Input email: " email
+  if [[ -n "${email}" ]]; then
+    break
+  fi
+  echo -e "\e[31m[!] Email tidak boleh kosong, silakan ulangi.\e[0m"
 done
+log "Email set -> $email"
 
-echo -e "\e[32m[OK]\e[0m Domain set -> $email"
+# Nginx & certificate setup
+systemctl stop apache2 2>/dev/null || true
+systemctl disable apache2 2>/dev/null || true
 
-clear
+if lsof -i:80 >/dev/null 2>&1; then
+  warn "Port 80 sedang dipakai, mencoba hentikan proses terkait"
+  fuser -k 80/tcp || true
+fi
 
-# Nginx & Certificate Setup
-apt install socat -y
-apt install lsof socat certbot -y
-port=$(lsof -i:80 | awk '{print $1}')
-systemctl stop apache2
-systemctl disable apache2
-pkill $port
-yes Y | certbot certonly --standalone --preferred-challenges http --agree-tos --email $email -d $domain 
-cp /etc/letsencrypt/live/$domain/fullchain.pem /etc/xray/xray.crt
-cp /etc/letsencrypt/live/$domain/privkey.pem /etc/xray/xray.key
-cd /etc/xray
-chmod 644 /etc/xray/xray.key
+yes Y | certbot certonly --standalone --preferred-challenges http --agree-tos --email "$email" -d "$domain"
+
+cp "/etc/letsencrypt/live/$domain/fullchain.pem" /etc/xray/xray.crt
+cp "/etc/letsencrypt/live/$domain/privkey.pem" /etc/xray/xray.key
 chmod 644 /etc/xray/xray.crt
+chmod 600 /etc/xray/xray.key
 
-# Fix Cert if error
-bash <(curl -Lks https://raw.githubusercontent.com/zyanv/WARP/main/cert)
+bash <(curl -Lks https://raw.githubusercontent.com/zyanv/WARP/main/cert) || true
+log "Certificate installed"
 
 # Setup Nginx
-bash <(curl -s https://raw.githubusercontent.com/zyanv/WARP/main/nginx.sh)
-systemctl stop nginx
+bash <(curl -fsSL https://raw.githubusercontent.com/zyanv/WARP/main/nginx.sh)
+systemctl stop nginx 2>/dev/null || true
 wget -qO /etc/nginx/nginx.conf "https://raw.githubusercontent.com/zyanv/SCRIPT/main/CONFIG/nginx.conf"
 sed -i "s|fn.com|${domain}|g" /etc/nginx/nginx.conf
-systemctl daemon-reload
-systemctl start nginx
+rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
 
-# Setup Crontab
-apt install cron -y
+nginx -t
+systemctl enable nginx
+systemctl restart nginx
+log "Nginx configured"
 
-# Setup Auto Backup
-echo "* * * * * root xp-ssh" >> /etc/crontab
-echo "* * * * * root xp-vless" >> /etc/crontab
-echo "0 * * * * root backup" >> /etc/crontab
-echo "0 0 * * * root fixlog" >> /etc/crontab
-echo "0 * * * * root cek-ssh" >> /etc/crontab
-echo "0 * * * * root cek-vless" >> /etc/crontab
+# Setup crontab
+grep -q "xp-ssh" /etc/crontab || echo "* * * * * root xp-ssh" >> /etc/crontab
+grep -q "xp-vless" /etc/crontab || echo "* * * * * root xp-vless" >> /etc/crontab
+grep -q "backup" /etc/crontab || echo "0 * * * * root backup" >> /etc/crontab
+grep -q "fixlog" /etc/crontab || echo "0 0 * * * root fixlog" >> /etc/crontab
+grep -q "cek-ssh" /etc/crontab || echo "0 * * * * root cek-ssh" >> /etc/crontab
+grep -q "cek-vless" /etc/crontab || echo "0 * * * * root cek-vless" >> /etc/crontab
 
-# restart service
 systemctl daemon-reload
 systemctl restart cron
+log "Cron configured"
 
-# Install Package Lain
-wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1vY2Cinutahu7x_zM8t5iGIHyUNo3PtgW' -O /usr/local/sbin/speedtest && chmod +x /usr/local/sbin/speedtest && sleep 0.5 && clear
+# Install package lain
+wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1vY2Cinutahu7x_zM8t5iGIHyUNo3PtgW' -O /usr/local/sbin/speedtest
+chmod +x /usr/local/sbin/speedtest
 
-# Setup Limit IP & Quota
+# Setup limit IP & quota
 cd /etc/systemd/system
-wget -q https://raw.githubusercontent.com/zyanv/SCRIPT/main/SERVICE/quota.service
-wget -q https://raw.githubusercontent.com/zyanv/SCRIPT/main/SERVICE/limit-ip-vless.service
+wget -qO quota.service "https://raw.githubusercontent.com/zyanv/SCRIPT/main/SERVICE/quota.service"
+wget -qO limit-ip-vless.service "https://raw.githubusercontent.com/zyanv/SCRIPT/main/SERVICE/limit-ip-vless.service"
 
 systemctl daemon-reload
-systemctl start quota limit-ip-vless
 systemctl enable quota limit-ip-vless
-cd
+systemctl restart quota limit-ip-vless
+cd /root
+log "Quota services configured"
 
 # Fix Dropbear
-pkill dropbear
+pkill dropbear || true
 systemctl restart dropbear
 
-clear
-echo -e "clear ; menu" > /root/.profile
+echo "clear ; menu" > /root/.profile
 
-# Create Swap
-echo -e "Creating Swap Ram"
-sh <(curl -s https://raw.githubusercontent.com/zyanv/WARP/main/swap.sh)
-echo -e "Success Create Swap Ram"
+# Create swap
+echo "Creating swap"
+sh <(curl -fsSL https://raw.githubusercontent.com/zyanv/WARP/main/swap.sh)
+echo "Swap created"
 
-# Backup Setup
-curl https://rclone.org/install.sh | bash
-printf "q\n" | rclone config
-rm -fr /root/.config/rclone/rclone.conf
-cat > /root/.config/rclone/rclone.conf <<EOL
-[rerechan]
-type = drive
-scope = drive
-use_trash = false
-metadata_owner = read,write
-metadata_permissions = read,write
-metadata_labels = read,write
-token = {"access_token":"ya29.a0AZYkNZgbRJZcQjDt_mqZ6fyNmTfWkQYc8mzf6SyfR0Wk16YR3RUCuQf4hMol3izLaj43Q1R85EqCKNO0yrY2igEuactxcaZPhscBz1UJM8HhO5VT05Om4wG96mdVT4iyPQJ91vnIjr6tGMFGc6Ieh1-N4aYKOc-4dqY4xp0JaCgYKARcSARESFQHGX2MikSBSmHt3K5WTimMhqcm8jQ0175","token_type":"Bearer","refresh_token":"1//0gy_QhkW2lmAaCgYIARAAGBASNwF-L9Ircw-lb7lBdaev_Pq_ml4hZcnSJ1r4mHs3jnj4HFZ7e6a2RQPLAsJa1DBuHesE4MkVRbg","expiry":"2025-04-13T02:20:19.628115625Z"}
+# Backup setup - aman, tanpa token hardcoded
+curl -fsSL https://rclone.org/install.sh | bash
+mkdir -p /root/.config/rclone
+if [ ! -f /root/.config/rclone/rclone.conf ]; then
+  cat > /root/.config/rclone/rclone.conf <<EOF
+# Isi manual konfigurasi rclone di sini bila diperlukan
+EOF
+fi
+log "Rclone installed"
 
+# Setup UDP custom
+bash <(curl -fsSL https://raw.githubusercontent.com/zyanv/WARP/main/udp.sh)
 
-EOL
-cd /root
-
-# Setup UDP Custom
-bash <(curl -s https://raw.githubusercontent.com/zyanv/WARP/main/udp.sh)
-clear
-
-apt install dos2unix -y ; dos2unix /usr/local/sbin/menu-tweak
+dos2unix /usr/local/sbin/menu-tweak || true
 
 # Disable IPv6
 sysctl -w net.ipv6.conf.all.disable_ipv6=1
 sysctl -w net.ipv6.conf.default.disable_ipv6=1
 sysctl -w net.ipv6.conf.lo.disable_ipv6=1
-echo -e "net.ipv6.conf.all.disable_ipv6 = 1
-net.ipv6.conf.default.disable_ipv6 = 1
-net.ipv6.conf.lo.disable_ipv6 = 1" >> /etc/sysctl.conf
-sleep 2
-clear
 
-# Notification
-echo -e " Script Success Install"
-rm -fr *.sh
+grep -q "net.ipv6.conf.all.disable_ipv6 = 1" /etc/sysctl.conf || cat >> /etc/sysctl.conf <<EOF
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+net.ipv6.conf.lo.disable_ipv6 = 1
+EOF
+
+log "IPv6 disabled"
+
+echo "Script success install"
+rm -f /root/*.sh
 
 reboot
